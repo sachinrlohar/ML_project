@@ -1,0 +1,757 @@
+---
+title: "DA5030.Proj.Lohar"
+author: "Sachin"
+date: "11/25/2019"
+output:
+  pdf_document: default
+  word_document: default
+header-includes:
+- \usepackage{gensymb}
+- \usepackage{hanging}
+- \usepackage{hyperref}
+- \usepackage{fancyhdr}
+- \usepackage{lipsum}
+- \usepackage{color}
+- \usepackage{soul}
+- \usepackage{dcolumn}
+- \usepackage{xcolor}
+- \usepackage{tcolorbox}
+- \usepackage[shortlabels]{enumitem}
+---
+
+\LaTeX
+
+```{r include=FALSE}
+# lets load all libraries need to complete the project
+library(psych); library(ggplot2); library(gridExtra); library(mice); library(randomForest)
+library(caret); library(e1071); library(kernlab); library(pROC); library(Amelia)
+library(caretEnsemble); library(GGally); library(rpart); library(ROCR)
+library(grid); library(class); library(base); library(gmodels); library(factoextra)
+```
+
+\begin{tcolorbox}[width=\textwidth,colback={green!10!white}]
+\Large CRISP-DM Methodology
+\end{tcolorbox}
+
+**\hl{\emph{Business Understanding}}**
+
+Diabetes is considered as one of the complex disease in the world and according to American Diabetes Association in 2015, around $9.4\%$ of US population had diabetes this contribute to approximately 30 million people. However, according to World Health Organization the number of people with diabetes in the whole world has risen from 108 million in 1980 to 422 million in 2014 and the health expenditure in 2019 for diabetes caused at least USD 760 billion dollars. 
+
+For diabetes, most diagnostic methods present today are like black-box models. These models are unable to provide the reasons for  underlying diagnosis to physicians; therefore, algorithms that can provide further insight are needed. So I would try to build a machine learning models on the available data to predict diabetes. 
+
+**Personnel**: I am going to work on this as a course project for DA5030 (Fall 2019).
+
+**Data**: Data is freely available on Kaggle (https://www.kaggle.com/uciml/pima-indians-diabetes-database) and can be downloaded locally. 
+
+**Computing resources**: I have MacOS High Sierra (version 10.13.6) and can be used to perform all the tasks. 
+
+**Software**: To analyze the data, I need freely availble software like RStudio (R version 3.6.1) which is downloaded on the above computing resourse. 
+
+**Business success criteria**: This project would provides several machine learning models with its accuracy to predict diabetes on the provided data. 
+
+**\hl{\emph{Data Understanding}}**
+
+This dataset is originally from the National Institute of Diabetes and Digestive and Kidney Diseases and can be found on 
+https://www.kaggle.com/uciml/pima-indians-diabetes-database 
+
+This dataset contains 9 columns and 768 observations. Columns are the medical predictors which includes Blood glucose level, blood pressure, skin thikness, insulin level, BMI, diabetes pedigree function, age and pregnancies and the last column is outcome which is target binary variable for diabetes (0 for no diabetes and 1 for diabetes). All 768 observations are from females at least 21 years old of Pima Indian heritage.
+
+Details of the columns and its units:
+
+**Preganancies** are the number of times pregnant (NP)
+
+**Glucose** is a plasma glucose concentration after 2 h in an OGTT
+
+**BloodPressure** Diastolic blood pressure (mmHg) (DBP)
+
+**SkinThickness** Triceps skinfold thickness (mm) (TSFT)
+
+**Insulin** Two-hour serum insulin ($\mu$U/mL) (2HSI)
+
+**BMI** is Body Mass Index
+
+**DiabetesPedigreeFunction** is a function for a genetic history of diabetes
+
+**Age** in years
+
+**Outcomes** are 0s and 1s which means patient has diabetes or not
+
+**\hl{\emph{Data Preparation}}**
+
+I would explore the data to check its attributes and its structure. I also need to clean the data to increse its quality required by selected machine learning algorithms. Data cleaning would include finding outliers and missing values. I would decide inputation strategy for missing values depending on how much missing data is there and structure of the column. 
+
+**\hl{\emph{Modeling}}**
+
+As I have binary dependent varible to be predicted, I would choose logistic regression, K-Nearest Neighbours, Support Vector Machine and Naive Bayes. I would perform these tasks for each model seperately. For test design, I would split data randomly for training and testing, however I would keep the same ration of the dependent variable (Diabetes YES or NO) as my original data. Training data would have $75\%$ of the original data and I would test the model on remaininig $25\%$ of the data to access its accuracy and performance. I would also perfom a k-fold validation to validate their performance. 
+
+**\hl{\emph{Evaluation}}**
+
+ In evaluation I would review if there is any important factor or task that has somehow been overlooked and I would describe the decision as to how to proceed, along with the rationale.
+
+**\hl{\emph{Deployment}}**
+
+As this is a course project I actually can not deploy in a real-life scenario. However, if I get chance to use this models in future I would use them to predict a real-life scenario. For now I would use this model on my testing data only and monitor its performance. 
+
+
+\begin{tcolorbox}[width=\textwidth,colback={green!10!white}]
+\Large Data Acquisition
+\end{tcolorbox}
+
+**\hl{\emph{Acquisition of data (e.g., CSV or flat file)}}**
+
+```{r}
+# set working directory so I can upload all required files and documents 
+# and can save any output files. 
+setwd("/Users/sachinlohar/Desktop/DA5030/Project")
+diab.data <- read.csv ( "diabetes.csv", header = TRUE, stringsAsFactors = FALSE)
+dim(diab.data)
+```
+
+\begin{tcolorbox}[width=\textwidth,colback={green!10!white}]
+\Large Data Exploratioin
+\end{tcolorbox}
+
+**\hl{\emph{Exploratory data plots}}**
+
+```{r}
+# get the structure of the data and see how data has been organized
+str ( diab.data )
+```
+
+This shows that all the data has numeric variables.
+
+Lets rename some of the variables so it would be visible clearly in plots.
+
+```{r}
+colnames(diab.data)[1] <- "Pregn"
+colnames(diab.data)[3] <- "BldPrss"
+colnames(diab.data)[4] <- "SknThknss"
+colnames(diab.data)[7] <- "DPF"
+colnames(diab.data)[9] <- "diabetes"
+diab.data$diabetes <- as.factor(diab.data$diabetes)
+levels(diab.data$diabetes) <- c ( "No", "Yes" )
+```
+
+Overall distribution of data. 
+
+```{r}
+par ( mfrow = c ( 1 , 3 ) )
+boxplot(diab.data$Pregn, main = "Pregnancies", boxwex = 0.1)
+boxplot(diab.data$Glucose, main = "Glucose", boxwex = 0.1)
+boxplot(diab.data$BldPrss, main = "blood Pressure", boxwex = 0.2)
+boxplot(diab.data$SknThknss, main = "Skin Thinkness", boxwex = 0.2)
+boxplot(diab.data$Insulin, main = "Insulin", boxwex = 0.2)
+boxplot(diab.data$BMI, main = "BMI", boxwex = 0.2)
+boxplot(diab.data$DPF, main = "DPF", boxwex = 0.2)
+boxplot(diab.data$Age, main = "Age", boxwex = 0.2)
+```
+
+Distribution of the data respective to diabetes outcomes.
+
+```{r warning=FALSE}
+# check each variable distribution respective to diabetes outcome
+preg <- ggplot( data = diab.data, aes_string ( x = "diabetes", y = "Pregn" ) ) + 
+    geom_boxplot ( aes ( fill = factor ( diabetes ) ) )
+gluco <- ggplot( data = diab.data, aes_string ( x = "diabetes", y = "Glucose" ) ) + 
+    geom_boxplot ( aes ( fill = factor ( diabetes ) ) )
+bldPre <- ggplot( data = diab.data, aes_string ( x = "diabetes", y = "BldPrss" ) ) + 
+    geom_boxplot ( aes ( fill = factor ( diabetes ) ) )
+sknThk <- ggplot( data = diab.data, aes_string ( x = "diabetes", y = "SknThknss" ) ) + 
+    geom_boxplot ( aes ( fill = factor ( diabetes ) ) )
+insu <- ggplot( data = diab.data, aes_string ( x = "diabetes", y = "Insulin" ) ) + 
+    geom_boxplot ( aes ( fill = factor ( diabetes ) ) )
+bmi <- ggplot( data = diab.data, aes_string ( x = "diabetes", y = "BMI" ) ) + 
+    geom_boxplot ( aes ( fill = factor ( diabetes ) ) )
+dpf <- ggplot( data = diab.data, aes_string ( x = "diabetes", y = "DPF" ) ) + 
+    geom_boxplot ( aes ( fill = factor ( diabetes ) ) )
+age <- ggplot( data = diab.data, aes_string ( x = "diabetes", y = "Age" ) ) + 
+    geom_boxplot ( aes ( fill = factor ( diabetes ) ) )
+
+grid.arrange(preg, gluco, ncol = 2)
+grid.arrange( bldPre ,sknThk, ncol = 2)
+grid.arrange( insu, bmi, ncol = 2)
+grid.arrange( dpf, age, ncol = 2)
+```
+
+
+**\hl{\emph{Detection of outliers}}**
+
+Rather finding individual variable's outlier, I would prefer to collectively consider features that matter in model building. For this I can apply cook's distance method where I would build a linear model on our data to detect the outliers. Generally variables that have cook's distance greater than 4 times a mean will be considered having an outliers and would affect our model performance. 
+
+```{r}
+set.seed(123)
+# build a linear model on our data
+out.detect.model <-  glm(diabetes ~ . , data = diab.data, family = "binomial")
+
+# get the cook's distance 
+cook.dist <- cooks.distance(out.detect.model)
+
+# plot the row numbers for which a variable has outliers. 
+plot(cook.dist , pch = ".", cex = 2)
+abline ( h = 4 * mean ( cook.dist, na.rm = T ), col = "blue" ) 
+text ( x = 1 : length ( cook.dist ) + 1 , y = cook.dist,
+       labels = ifelse ( cook.dist > 4 * mean ( cook.dist, na.rm = T), 
+                         names ( cook.dist ), "" ), col = "red" )
+
+```
+
+
+```{r}
+# get a list of number of rows 
+outl.row.numbers <- as.numeric ( names ( cook.dist ) [ ( cook.dist > 4 * 
+                                                             mean ( cook.dist, 
+                                                                    na.rm = T))])
+length(outl.row.numbers)
+diab.data <- diab.data[-outl.row.numbers,]
+```
+
+```{r}
+dim(diab.data)
+```
+
+
+
+This shows that there are 33 rows which has outliers which would affect the performance of our model. So, modified our data with outliers replaced. However, there may be some outlier present in an individual variables. I would proceed with this. 
+
+**\hl{\emph{correlation/collinearity analysis}}**
+
+To check correlation of all varibles to each other in one plot, I can use pairs.panel function from psych package.
+
+```{r}
+pairs.panels(diab.data)
+```
+
+This plot shows that non of the variables has very strong correlation to each other. Only glucose has a little bit correlation with diabetes as compared to other variables which makes sense that higher glucose level is considered as diabetic condition. Apart from that preganancy and age has correlation while skin thickness shows correlation with insulin level and BMI. However, none of these correlations are very strong. Rest all varibles do not show any strong correlation with each other. 
+
+\begin{tcolorbox}[width=\textwidth,colback={green!10!white}]
+\Large Data Cleaning and Shaping
+\end{tcolorbox}
+
+**\hl{\emph{data imputation}}**
+
+For this I need to get the summary of the data. 
+
+```{r}
+summary(diab.data)
+```
+
+There are no missing values in this data set as such, however 0 value does not make any sense in glucose, blood pressure, skin thikness, insulin and BMI for alive person. 0 value in preganancy is possible as it denotes no preganancy. 
+
+So, 0s in these variables are considered as a missing values. 
+
+Lets check how many 0s are in this variables. 
+
+```{r}
+cat("Glucose: ", sum(diab.data$Glucose == 0),
+    "(", round((sum(diab.data$Glucose == 0)/length(diab.data$Glucose))*100, 2),"%)\n")
+cat("Blood Pressure: ", sum(diab.data$BldPrss == 0),
+    "(", round((sum(diab.data$BldPrss == 0)/length(diab.data$BldPrss))*100, 2),"%)\n")
+cat("Skin Thinkness: ", sum(diab.data$SknThknss == 0),
+    "(", round((sum(diab.data$SknThknss == 0)/length(diab.data$SknThknss))*100, 2),"%)\n")
+cat("Insulin: ", sum(diab.data$Insulin == 0), 
+    "(", round((sum(diab.data$Insulin == 0)/length(diab.data$Insulin))*100, 2),"%)\n")
+cat("BMI: ", sum(diab.data$BMI == 0), 
+    "(", round((sum(diab.data$BMI == 0)/length(diab.data$BMI))*100, 2),"%)\n")
+
+# percentage of missing values
+
+```
+
+So the missing values and its percentage in each variable is as follow. 
+
+Glucose:  3 (0.41$\%$)
+
+Blood Pressure:  28 (3.81$\%$)
+
+Skin Thinkness:  212 (28.84$\%$)
+
+Insulin:  354 (48.16$\%$)
+
+BMI:  9 (1.22$\%$)
+
+I would not delete the missing value rows as removing these rows would affect valuable information in other variables like glucose level, blood pressure, BMI and Diabetes Pedigree Function. As the number of missing values are very high I would impute these values using multivariate imputation by chained equations (mice package). However, I would do impite missing values after dividing data into training and test set.  
+
+I also have noticed that there is one an unusual observation in skin thinkness. Lets check this and impute with its median value. 
+
+```{r}
+# count the unusual 99 value in skin thikness
+sum(diab.data[, 4] == 99)
+# impute this with its median value
+diab.data[, 4][diab.data[,4] == 99] <- 23
+# check its imputation
+sum(diab.data[, 4] == 99)
+```
+
+Lets replace all 0s with NA values which is required by our imputation algorithm. 
+
+```{r include=FALSE}
+diab.data[, 2][diab.data[,2] == 0] <- NA
+diab.data[, 3][diab.data[,3] == 0] <- NA
+diab.data[, 4][diab.data[,4] == 0] <- NA
+diab.data[, 5][diab.data[,5] == 0] <- NA
+diab.data[, 6][diab.data[,6] == 0] <- NA
+```
+
+We can see missing values in plot. 
+
+```{r}
+missmap(diab.data)
+```
+
+
+**\hl{\emph{creation of training and validation subsets}}**
+
+
+I think it is good to split the data first before imputaion of all 0 values. I would use 75$\%$ data for training the model while 25$\%$ for testing. 
+
+We know that 500 observations are NO and 268 observations are YES for diabetes varible which is 65.1$\%$ and 34.9$\%$ respectively. I want to split the data in the same proportion for diabetes variable. 
+
+```{r}
+set.seed(123)
+# split the data with 75/25 proportion
+split.data <- createDataPartition ( diab.data$diabetes, p = 0.75, list = FALSE )
+# assign to training and test dataset 
+train.data <- diab.data[split.data,]
+test.data <- diab.data[-split.data,]
+# check its proportion for diabetes variable. 
+round(prop.table(table(diab.data$diabetes)) * 100, digits = 2)
+round(prop.table(table(train.data$diabetes)) * 100, digits = 2)
+round(prop.table(table(test.data$diabetes)) * 100, digits = 2)
+```
+
+This shows that we have the same proportion of diabetes factors in training and test dataset as in our original dataset. 
+
+**Impute data on training dataset**
+
+
+```{r}
+set.seed(123)
+# apply multivariate imputation by chained equation with 
+# random forest method on these 2 varibles with NA values
+imputed.values.train <- mice ( train.data[ , c ("SknThknss", "Insulin")], method = 'rf')
+
+# Extracts the completed data from a 'mids' object
+extract.values.train <- mice::complete ( imputed.values.train )
+
+# replace the NAs with imouted values
+
+train.data$SknThknss <- extract.values.train$SknThknss
+train.data$Insulin <- extract.values.train$Insulin
+
+```
+
+
+Lets impute glucose with its mean and blood pressure and BMI with its median as number of missing values are not very high in these varibles. 
+
+
+```{r}
+train.data[, 2][is.na(train.data[,2])] <- 120
+train.data[, 3][is.na(train.data[,3])] <- 72
+train.data[, 6][is.na(train.data[,6])] <- 32
+```
+
+**Impute data on test dataset**
+
+```{r}
+set.seed(123)
+# apply multivariate imputation by chained equation with 
+# random forest method on these 2 varibles with NA values
+imputed.values.test <- mice ( test.data[ , c ("SknThknss", "Insulin")], method = 'rf')
+
+# Extracts the completed data from a 'mids' object
+extract.values.test <- mice::complete ( imputed.values.test )
+
+# replace the NAs with imouted values
+
+test.data$SknThknss <- extract.values.test$SknThknss
+test.data$Insulin <- extract.values.test$Insulin
+```
+
+Lets impute glucose with its mean and blood pressure and BMI with its median as number of missing values are not very high in these varibles. 
+```{r}
+test.data[, 2][is.na(test.data[,2])] <- 120
+test.data[, 3][is.na(test.data[,3])] <- 70
+test.data[, 6][is.na(test.data[,6])] <- 32
+
+```
+
+
+```{r}
+missmap(train.data) 
+missmap(test.data)
+```
+
+
+This shows that we don't have any missing values in our train and test data set. 
+
+```{r}
+summary(train.data)
+summary(test.data)
+
+```
+
+
+```{r}
+# define min-max normalization function 
+normalize.f <- function ( x ) {
+  return ( ( x - min ( x ) ) / ( max ( x ) - min( x ) ) )
+}
+# normalize imputed training dataset 
+train.data[,1:8] <- apply(train.data[ , 1:8], 2, normalize.f)
+# normalize imputed test dataset 
+test.data[ , 1:8] <- apply ( test.data[ , 1:8] , 2 , normalize.f )
+```
+
+The Learning Vector Quantization (LVQ) will be used in all examples because of its simplicity.
+
+```{r}
+set.seed(123)
+# set the control structure for feature selection 
+control <- trainControl( method = "repeatedcv", number = 10, repeats = 3)
+# train the model
+model <- train ( diabetes ~ . , data = train.data, 
+                 method = "lvq", 
+                 preProcess = "scale", 
+                 trControl = control )
+# estimate variable importance
+importance <- varImp( model, scale = FALSE)
+plot ( importance )
+```
+
+```{r}
+set.seed(123)
+# Lets check principle components
+PCA.train <- prcomp(train.data[, 1:8])
+summary(PCA.train)
+fviz_eig(PCA.train)
+```
+
+This shows that around $66\%$ of the data explained by first three principle components. 
+---------------------------------------------------------------------------------
+
+\begin{tcolorbox}[width=\textwidth,colback={green!10!white}]
+\Large Model construction and evaluation
+\end{tcolorbox}
+
+**\hl{\emph{Model 1: Logistic Regression}}**
+
+```{r}
+# Build the logistic regression model with all variables
+logit.regres.model.1 <- glm(diabetes ~ . , data = train.data, family = binomial(link='logit'))
+summary(logit.regres.model.1)
+```
+
+SknThknss has highest p-value, so drop it and build model on rest of the variables.
+
+
+```{r}
+logit.regres.model.2 <- glm(diabetes ~  . -SknThknss, data = train.data, family = binomial(link='logit'))
+summary(logit.regres.model.2)
+```
+
+BldPrss has highest p-value, so drop it and build model on rest of the variables.
+
+```{r}
+logit.regres.model.3 <- glm(diabetes ~  . -SknThknss -BldPrss, data = train.data, family = binomial(link='logit'))
+summary(logit.regres.model.3)
+```
+
+Age has highest p-value, so drop it and build model on rest of the variables.
+
+
+```{r}
+logit.regres.model.4 <- glm(diabetes ~  . -SknThknss -BldPrss -Age , data = train.data, family = binomial(link='logit'))
+summary(logit.regres.model.4)
+```
+
+Insulin has highest p-value, so drop it and build model on rest of the variables.
+
+After dropping 4 high p-value variables, model can be build on pregnancy, glucose, BMI and DPF. 
+
+
+```{r}
+logit.regres.model.5 <- glm(diabetes ~ Pregn + Glucose + BMI + DPF, 
+                            data = train.data, 
+                            family = binomial(link='logit'))
+summary(logit.regres.model.5)
+```
+
+Now we have regression model with all variable with p-value smaller than 0.05. Lets use this model to predict train data set. I am doing to check its accuracy on its own dataset. Then I will check its accuracy on test dataset and if accuracy on train dataset is higher than test then our model is overfitting. I would decide prediction power as 0.5 that if its probability is more that half then I would say the prediction is correct. 
+
+```{r}
+# Prediction for train dataset 
+train.pred <- predict(logit.regres.model.5, train.data, type = "response")
+
+# Classification table - train dataset
+traintable <- table(Predicted = train.pred >= 0.5, Actual = train.data$diabetes)
+traintable
+# Accuracy of the model – train dataset 
+accuracy.train <- round(sum(diag(traintable))/sum(traintable),2)
+cat("Accuracy is: ",accuracy.train)
+
+```
+
+Model has $79\%$ accuracy on training dataset. Lets check this on test dataset. 
+
+```{r}
+# Prediction for train dataset 
+test.pred <- predict(logit.regres.model.5, test.data, type = "response")
+  
+# Classification table - train dataset
+test.table <- table(Predicted = test.pred >= 0.5, Actual = test.data$diabetes)
+test.table
+# Accuracy of the model – train dataset 
+accuracy.test <- round(sum(diag(test.table))/sum(test.table),2)
+cat("Accuracy is: ",accuracy.test)
+```
+
+Accuracy of our model on test dataset is $80\%$ which is not that bad. 
+
+Lets evaluate predictor performance by using performance function with ROC curve with true positive rate (tpr) and false positive rate (fpr) options. 
+
+
+```{r}
+predict.test = prediction(test.pred, test.data$diabetes)
+ROC.values = performance(predict.test, measure = "tpr", x.measure = "fpr")
+plot(ROC.values)
+```
+
+ROC curve look good. Lets check its area under the curve percentage. 
+
+```{r}
+auc <- performance(predict.test, measure = "auc")
+auc <- auc@y.values[[1]]
+round(auc, digits = 2)
+```
+
+Area under the curve is $87\%$. We can say that model performs good. Lets do 10 fold cross-validation of this model. 
+
+
+```{r}
+set.seed(1233)
+# set 10 folds for cross validation 
+ctrl.reg <- trainControl ( method = "repeatedcv", number = 10, repeats = 3)
+cv.reg <- train( diabetes ~ . , 
+                  data = train.data,
+                  method = "glm",
+                  trControl = ctrl.reg,
+                  preProcess = c("center", "scale"),  
+                  tuneLength = 10)
+cv.reg.pred <- predict(cv.reg, test.data)
+confusionMatrix(cv.reg.pred, test.data$diabetes)
+```
+
+I did 10 fold cross-validation for logistic regression and now accuracy is $79\%$ which shows that it does not improves its performance. 
+
+---------------------------------------------------------------------------------
+
+
+
+**\hl{\emph{Model 2: k-Nearest Neighbors}}**
+
+I choose to use this algorithm because this does not make any additional assumptions and simple to implement. The drawback of this algorithm become slower as data increase in size. However, I have relatively small data which has 9 columns and 768 observations. So this algorithm would work fine my data. 
+
+K-fold cross-validation to select the best peforming k-NN model. 
+
+```{r}
+# cross-validation step 
+set.seed(123)
+ctrl.knn <- trainControl ( method = "repeatedcv", number = 5, repeats = 3)
+# define grid, select odd numbers to decide which point to choose 
+nn_grid <- expand.grid( k = c (7, 9, 11, 13, 15)) 
+# build the best model with appropriate k number
+best.knn.1 <- train( diabetes ~ . , 
+                  data = train.data,
+                  method = "knn",
+                  trControl = ctrl.knn,
+                  preProcess = c("center", "scale"),  
+                  tuneGrid = nn_grid)
+best.knn.1
+plot ( best.knn.1 )
+```
+
+A 5-fold cross validation shows that k = 13 for nearest neighbors would give us best accuracy model. 
+
+
+```{r}
+# train model on train data using optimal k, test with test data
+model_knn <- knn ( train = train.data[, 1:8],
+                 test = test.data[, 1:8],
+                 # class (Outcome) labels
+                 cl = train.data$diabetes,  
+                 k = 13 )
+# A summary table will be generated with cell row, column and table 
+# proportions and marginal totals and proportions
+CrossTable(x = test.data$diabetes, y = model_knn , prop.chisq = FALSE )
+# get the confusion matrix
+confusion_matrix <- table ( test.data$diabetes , model_knn )
+# print the accuracy
+cat("Test accuracy: ", round(sum(diag(confusion_matrix))/sum(confusion_matrix)*100),"%")
+
+```
+
+This model shows $80\%$ accuracy after k-fold validation. 
+
+
+Now lets see how this model would perform on the selected variables. As per our logistic regression performance, variables pregnancy, glucose, BMI and DPF gave us more accuracy. 
+
+```{r}
+train.knn <- train.data[, c(1, 2, 6, 7, 9)]
+test.knn <- test.data[, c(1, 2, 6, 7, 9)]
+```
+
+
+```{r}
+# cross-validation step 
+set.seed(123)
+ctrl.knn <- trainControl ( method = "repeatedcv", number = 5, repeats = 3)
+# define grid, select odd numbers to decide which point to choose 
+nn_grid <- expand.grid( k = c ( 5, 7, 9, 11, 13))
+# build the best model with appropriate k number
+best.knn.2 <- train( diabetes ~ . , 
+                  data = train.data[, c(1, 2, 6, 7, 9)],
+                  method = "knn",
+                  trControl = ctrl.knn,
+                  preProcess = c("center", "scale"),  
+                  tuneGrid = nn_grid)
+best.knn.2
+plot ( best.knn.2 )
+```
+
+```{r}
+# train model on train data using optimal k, test with test data
+model.knn.2 <- knn ( train = train.data[, c(1, 2, 6, 7)],
+                 test = test.data[, c(1, 2, 6, 7)],
+                 # class (Outcome) labels
+                 cl = train.data$diabetes,  
+                 k = 11 )
+# A summary table will be generated with cell row, column and table 
+# proportions and marginal totals and proportions
+CrossTable(x = test.data$diabetes, y = model.knn.2 , prop.chisq = FALSE )
+# get the confusion matrix
+confusion_matrix <- table ( test.data$diabetes , model.knn.2 )
+# print the accuracy
+cat("Test accuracy: ", round(sum(diag(confusion_matrix))/sum(confusion_matrix)*100),"%")
+
+```
+
+
+It looks like selecting only 4 variable from logistic regression model does not improves model performance. 
+
+-------------------------------------------------------------------------------------------
+
+**\hl{\emph{Model 3: Naive Bayes}}**
+
+I choose this algorithm because there is very little correlation between our predictors and Naïve Bayes algorithm makes assumption that all predictors are independent, so I think this model would work better for this data. 
+
+
+```{r warning=FALSE}
+# build Naive Bayes model on all columns 
+naive.B.model.1 <- naiveBayes(diabetes ~ . , data = train.data)
+# predict on test dataset 
+naive.pred.1 <- predict(naive.B.model.1, test.data)
+# create confusion matrix to see its accuracy
+confusionMatrix(naive.pred.1, test.data$diabetes)
+```
+
+Our Naive Bayes model shows that it has $72\%$ accuracy. Lets do 10 fold cross-validation to see if we can improve its performance. 
+
+```{r warning=FALSE}
+naive.B.model.2 <- train ( train.data[ , -9 ],
+                           train.data$diabetes, 
+                           'nb' , 
+                           trControl = trainControl( method = 'cv', 
+                                                     number = 10 ))
+```
+
+```{r}
+naive.pred.2 <- predict(naive.B.model.2,newdata = test.data )
+confusionMatrix(naive.pred.2, test.data$diabetes)
+```
+
+10 fold cross-validation shows that our Naive Bayes model has improved its performance to $77\%$ accuracy. 
+
+-------------------------------------------------------------------------------------------
+
+**\hl{\emph{Model 4: Support Vector Machine}}** 
+
+I choose this algorithm because our dependent variable is a binary and I think support vector machine algorithm would work well on this data. 
+
+
+```{r}
+# build SVM model with radial kernel 
+svm.model.1 = svm(diabetes ~ . , data = train.data , 
+                  kernel = "radial", type = "C-classification")
+
+# Summary 
+summary(svm.model.1)
+```
+
+
+```{r}
+# predict for training data to check its accuracy
+train.pred.1 = predict ( svm.model.1 , newdata = train.data )
+# generate confusion matrix
+confusionMatrix ( train.pred.1 , train.data$diabetes )
+```
+
+On training dataset it shows that its accuracy is $82\%$. Lets see its accuracy on test dataset. 
+
+```{r}
+# predict on test data set 
+test.pred.1 <- predict ( svm.model.1, test.data )
+confusionMatrix ( test.pred.1 , test.data$diabetes )
+```
+
+Accuracy has droped to $80\%$ for the test dataset. This model has overfitting problem. 
+
+I need to tune this model for better accuracy with cost and gamma options.
+
+
+```{r}
+tuned.svm <- tune.svm(diabetes ~ . , 
+                      data = train.data, 
+                      cost = 10^c(-1, 0, 1), 
+                      gamma = 10^(-5:-1))
+summary(tuned.svm)
+```
+
+
+```{r}
+# build SVM model with radial kernel 
+svm.model.2 = svm(diabetes ~ . , data = train.data , 
+                  kernel = "radial", type = "C-classification", 
+                  gamma = 0.01, 
+                  cost = 10)
+# predict on test data set 
+test.pred.2 <- predict ( svm.model.2, test.data )
+confusionMatrix ( test.pred.2 , test.data$diabetes )
+```
+
+Tunning showed that the accuracy is the same as previous $80\%$ on the test dataset.
+
+-------------------------------------------------------------------------------------------
+
+
+**\hl{\emph{Model Comparison}}**
+
+Logistic regression: $80\%$
+
+k-nearest Neighbours: $80\%$
+
+Naive Bayes: $77\%$
+
+Support Vector Machine: $80\%$
+
+This shows that except Naive Bayes, all other models works good on our data.
+
+
+
+
+
+
+
+
+
+
+
